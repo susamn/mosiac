@@ -1,0 +1,7 @@
+{
+  "id": "mosaic-test-app",
+  "name": "Mosaic Test App",
+  "description": "Playwright fixture app for exercising mosaic's contract",
+  "version": "0.1.0",
+  "entry": "index.html"
+}
