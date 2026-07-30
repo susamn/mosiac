@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, rmSync, cpSync, lstatSync, realpathSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, cpSync, lstatSync, realpathSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -141,6 +141,68 @@ test.describe.serial("mosaic host contract", () => {
   test("encoded path traversal out of data/ is refused even through the centralized symlink", async ({ request }) => {
     const res = await request.get(`/mosaic/apps/${APP_ID}/data/%2e%2e/app.json`);
     expect(res.status()).toBe(404);
+  });
+
+  // The tests below write their own throwaway scratch files rather than reusing
+  // manifest.json/nested/deep.json, since the unboarding test further down still
+  // asserts those two survive untouched.
+
+  test("DELETE removes a single data file", async ({ request }) => {
+    const target = path.join(FIXTURE, "data", "scratch-single.json");
+    writeFileSync(target, JSON.stringify({ throwaway: true }));
+    expect(existsSync(target)).toBe(true);
+
+    const res = await request.delete(`/mosaic/apps/${APP_ID}/data/scratch-single.json`);
+    expect(res.status()).toBe(200);
+    expect(existsSync(target)).toBe(false);
+  });
+
+  test("DELETE on a sub-directory removes it recursively in one call", async ({ request }) => {
+    const dir = path.join(FIXTURE, "data", "scratch-dir");
+    mkdirSync(path.join(dir, "nested"), { recursive: true });
+    writeFileSync(path.join(dir, "a.json"), "{}");
+    writeFileSync(path.join(dir, "nested", "b.json"), "{}");
+
+    const res = await request.delete(`/mosaic/apps/${APP_ID}/data/scratch-dir`);
+    expect(res.status()).toBe(200);
+    expect(existsSync(dir)).toBe(false);
+  });
+
+  test("bulk delete is client-composed: several parallel DELETE calls each succeed independently", async ({ request }) => {
+    const files = ["scratch-bulk-a.json", "scratch-bulk-b.json", "scratch-bulk-c.json"];
+    for (const f of files) writeFileSync(path.join(FIXTURE, "data", f), "{}");
+
+    const responses = await Promise.all(
+      files.map((f) => request.delete(`/mosaic/apps/${APP_ID}/data/${f}`))
+    );
+    for (const res of responses) expect(res.status()).toBe(200);
+    for (const f of files) expect(existsSync(path.join(FIXTURE, "data", f))).toBe(false);
+  });
+
+  test("DELETE refuses to remove an app's entire data/ root in one call", async ({ request }) => {
+    const res = await request.delete(`/mosaic/apps/${APP_ID}/data/`);
+    expect(res.status()).toBe(400);
+    // proven still intact: the fixture's own shipped data survives
+    expect(existsSync(path.join(FIXTURE, "data", "manifest.json"))).toBe(true);
+  });
+
+  test("DELETE on a nonexistent path returns 404", async ({ request }) => {
+    const res = await request.delete(`/mosaic/apps/${APP_ID}/data/does-not-exist.json`);
+    expect(res.status()).toBe(404);
+  });
+
+  test("encoded path traversal out of data/ is refused on DELETE too", async ({ request }) => {
+    // Playwright's request context (like curl) normalizes %2e%2e client-side
+    // before the request is even sent, collapsing data/%2e%2e/app.json down
+    // to app.json — which then 405s (matches the static GET-only route, no
+    // DELETE registered there) rather than 404ing inside the data route's own
+    // containment guard. A raw socket request with the encoding intact on the
+    // wire does reach the data route and gets 404 from resolve_within_for_delete
+    // — verified manually. Either way the file must survive; that's the actual
+    // security property under test, not which specific status code shows up.
+    const res = await request.delete(`/mosaic/apps/${APP_ID}/data/%2e%2e/app.json`);
+    expect([404, 405]).toContain(res.status());
+    expect(existsSync(path.join(FIXTURE, "app.json"))).toBe(true);
   });
 
   test("unknown app id returns 404", async ({ request }) => {
