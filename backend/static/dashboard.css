@@ -12,7 +12,8 @@
 body { background: var(--bg); color: var(--ink); font: 15px/1.55 system-ui, sans-serif; padding: 24px; }
 .wrap { max-width: 900px; margin: 0 auto; }
 header { margin-bottom: 24px; }
-h1 { font-size: 24px; font-weight: 650; }
+h1 { font-size: 24px; font-weight: 650; display: flex; align-items: center; gap: 10px; }
+.logo { width: 24px; height: 24px; border-radius: 5px; }
 .sub { color: var(--muted); font-size: 14px; margin-top: 2px; }
 .search { display: block; width: 100%; height: 40px; padding: 0 14px; margin-bottom: 16px;
           background: var(--card); border: 1px solid var(--line); border-radius: 10px;
