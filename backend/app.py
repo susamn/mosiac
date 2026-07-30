@@ -1,8 +1,13 @@
 """mosaic — auto-discovering host for skill-produced apps.
 
-Two routes carry every app's own behavior; this host has no per-app logic:
-  GET /mosaic/apps/{id}/{path}       static assets (js, css, the app's index.html)
-  GET /mosaic/apps/{id}/data/{path}  app-owned data, sub-paths fully app-defined
+Three routes carry every app's own behavior; this host has no per-app logic:
+  GET    /mosaic/apps/{id}/{path}       static assets (js, css, the app's index.html)
+  GET    /mosaic/apps/{id}/data/{path}  app-owned data, sub-paths fully app-defined
+  DELETE /mosaic/apps/{id}/data/{path}  delete one file or sub-directory of that data;
+                                         never the app's whole data/ root in one call —
+                                         an app's own frontend calls this for its own
+                                         delete UI (single or, composed client-side,
+                                         bulk); mosaic's own dashboard never exposes it.
 
 Apps are discovered by globbing APPS_DIR/*/app.json — a fixed,
 install-independent staging directory (default ~/.local/share/mosaic/apps),
@@ -16,6 +21,7 @@ contract a skill follows itself).
 import json
 import os
 import re
+import shutil
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
@@ -82,6 +88,19 @@ def resolve_within(root: Path, rel_path: str) -> Path:
     return candidate
 
 
+def resolve_within_for_delete(root: Path, rel_path: str) -> Path:
+    """Resolve rel_path under root for deletion: refuse escape, refuse a
+    missing target, and refuse the root itself — whole-directory wipe stays
+    a deliberate CLI/skill step, never a single call through this route."""
+    root = root.resolve()
+    candidate = (root / rel_path).resolve()
+    if not candidate.is_relative_to(root) or not candidate.exists():
+        raise HTTPException(404)
+    if candidate == root:
+        raise HTTPException(400, "refusing to delete an app's entire data/ directory through this route")
+    return candidate
+
+
 @app.get("/", include_in_schema=False)
 def root():
     return RedirectResponse(url="/mosaic/")
@@ -116,6 +135,17 @@ def app_entry(app_id: str):
 def app_data(app_id: str, path: str):
     d = app_dir(app_id)
     return FileResponse(resolve_within(d / "data", path))
+
+
+@app.delete("/mosaic/apps/{app_id}/data/{path:path}")
+def app_data_delete(app_id: str, path: str):
+    d = app_dir(app_id)
+    target = resolve_within_for_delete(d / "data", path)
+    if target.is_dir():
+        shutil.rmtree(target)
+    else:
+        target.unlink()
+    return {"deleted": path}
 
 
 @app.get("/mosaic/apps/{app_id}/{path:path}")
