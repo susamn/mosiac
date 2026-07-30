@@ -79,7 +79,14 @@ itself on startup if it doesn't exist yet (never touches it if it does).
 - `GET /mosaic/apps/{id}/data/{path}` — passthrough from that app's `data/`; the
   sub-path structure under `data/` is entirely up to the app (one flat file, or
   as many nested paths as it wants).
-- Both routes refuse to resolve outside the app's own directory.
+- `DELETE /mosaic/apps/{id}/data/{path}` — deletes one file, or recursively one
+  sub-directory, under that app's `data/`. For an app's own frontend to call —
+  e.g. a delete button on one of its own list-card items. Bulk delete has no
+  dedicated endpoint; compose it client-side as several parallel calls to this
+  same route (`Promise.allSettled`). Always refuses a target equal to the
+  app's `data/` root itself (400) — an app's whole dataset can never be wiped
+  through this route in one call, only individual items within it.
+- All three routes refuse to resolve outside the app's own directory.
 - The dashboard shows each app's data freshness as a status LED, computed
   purely from filesystem mtimes under `data/` (no manifest format required —
   apps with no data yet are always shown grey). Apps that have data are
@@ -93,10 +100,11 @@ itself on startup if it doesn't exist yet (never touches it if it does).
 ## Tests
 
 Playwright E2E suite against the actual FastAPI server (dashboard listing,
-static + data passthrough, app-owned nested data sub-paths, and the
-path-traversal guard). Onboards/unboards a throwaway fixture app under a
-namespaced id (`mosaic-test-app`) — safe to run against a host with real apps
-already attached.
+static + data passthrough, data deletion including root-wipe rejection,
+app-owned nested data sub-paths, and the path-traversal guard on both read
+and delete). Onboards/unboards a throwaway fixture app under a namespaced id
+(`mosaic-test-app`) — safe to run against a host with real apps already
+attached.
 
 ```bash
 cd tests
@@ -118,3 +126,6 @@ one from `.venv` for the run.
 - No runtime registration API — attaching an app is a plain filesystem
   operation against a fixed staging directory, so it works whether or not
   mosaic is running, or even installed yet, at the time.
+- No delete UI on mosaic's own dashboard, ever — the tile listing at
+  `/mosaic/` stays read-only. The `DELETE` route above exists for individual
+  apps to build their own delete UI against, not for mosaic to grow one.
