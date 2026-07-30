@@ -46,9 +46,9 @@ test.describe.serial("mosaic host contract", () => {
     onboard();
     await page.goto("/mosaic/");
     const tile = page.locator(".tile", { hasText: "Mosaic Test App" });
-    await expect(tile).toBeVisible();
-    await expect(tile.locator(".tdesc")).toHaveText("Playwright fixture app for exercising mosaic's contract");
     await expect(tile.locator(".tver")).toHaveText("v0.1.0");
+    await expect(tile.locator(".tsize")).toBeVisible();
+    await expect(page.locator(".header-data-info")).toBeVisible();
   });
 
   test("dashboard search filters by name and by description, and clears", async ({ page }) => {

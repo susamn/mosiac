@@ -10,8 +10,16 @@
 <body>
 <div class="wrap">
   <header>
-    <h1><img src="/mosaic/static/favicon.svg" alt="" class="logo">mosaic</h1>
-    <p class="sub">apps onboarded on this host</p>
+    <div class="header-top">
+      <div>
+        <h1><img src="/mosaic/static/favicon.svg" alt="" class="logo">mosaic</h1>
+        <p class="sub">apps onboarded on this host</p>
+      </div>
+      <div class="header-data-info" title="Total data size across onboarded apps">
+        <span class="data-label">Total Data</span>
+        <span class="data-val">{{ total_data_size }}</span>
+      </div>
+    </div>
   </header>
   {% if apps %}
   <div class="controls">
@@ -31,7 +39,10 @@
       <span class="led"></span>
       <div class="tname">{{ a.name }}</div>
       <div class="tdesc">{{ a.description or "" }}</div>
-      <div class="tver">v{{ a.version or "0.0.0" }}</div>
+      <div class="tmeta">
+        <span class="tver">v{{ a.version or "0.0.0" }}</span>
+        <span class="tsize" title="App data size">{{ a.data_size_formatted }}</span>
+      </div>
     </a>
     {% endfor %}
   </div>

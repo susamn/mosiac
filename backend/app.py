@@ -30,7 +30,9 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 APPS_DIR = Path(os.environ.get("MOSAIC_APPS_DIR", Path.home() / ".local" / "share" / "mosaic" / "apps"))
+DATA_HOME = Path(os.environ.get("MOSAIC_DATA_HOME", Path.home() / ".local" / "share" / "mosaic" / "data"))
 APPS_DIR.mkdir(parents=True, exist_ok=True)  # merciful: create once if missing, never touch if present
+DATA_HOME.mkdir(parents=True, exist_ok=True)
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 
 app = FastAPI(title="mosaic", docs_url=None, redoc_url=None)
@@ -38,17 +40,65 @@ app.mount("/mosaic/static", StaticFiles(directory=str(Path(__file__).parent / "s
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
 
+def format_size(size_bytes: int) -> str:
+    """Format byte count into human readable size string."""
+    if size_bytes < 1024:
+        return f"{size_bytes} B"
+    elif size_bytes < 1024 * 1024:
+        return f"{size_bytes / 1024:.1f} KB"
+    elif size_bytes < 1024 * 1024 * 1024:
+        return f"{size_bytes / (1024 * 1024):.1f} MB"
+    else:
+        return f"{size_bytes / (1024 * 1024 * 1024):.2f} GB"
+
+
+def dir_size(path: Path) -> int:
+    """Recursively calculate size in bytes of a directory or file."""
+    try:
+        path = path.resolve()
+    except OSError:
+        return 0
+    if not path.exists():
+        return 0
+    if path.is_file():
+        return path.stat().st_size
+    total = 0
+    if path.is_dir():
+        for f in path.rglob("*"):
+            if f.is_file():
+                try:
+                    total += f.stat().st_size
+                except OSError:
+                    pass
+    return total
+
+
+def app_data_size(app_id: str, entry: Path) -> int:
+    """Calculate data size for a given app ID (checking DATA_HOME/<id> and entry/data)."""
+    primary = DATA_HOME / app_id
+    if primary.exists():
+        return dir_size(primary)
+    fallback = entry / "data"
+    if fallback.exists():
+        return dir_size(fallback)
+    return 0
+
+
 def data_updated_at(entry: Path):
-    """Most recent mtime among files under entry/data, or None if there is none."""
-    data_dir = entry / "data"
-    if not data_dir.is_dir():
-        return None
+    """Most recent mtime among files under entry/data or DATA_HOME/app_id, or None if there is none."""
+    data_dirs = [DATA_HOME / entry.name, entry / "data"]
     latest = None
-    for f in data_dir.rglob("*"):
-        if f.is_file():
-            mtime = f.stat().st_mtime
-            if latest is None or mtime > latest:
-                latest = mtime
+    for data_dir in data_dirs:
+        if not data_dir.is_dir():
+            continue
+        for f in data_dir.rglob("*"):
+            if f.is_file() and not f.is_symlink():
+                try:
+                    mtime = f.stat().st_mtime
+                    if latest is None or mtime > latest:
+                        latest = mtime
+                except OSError:
+                    pass
     return latest
 
 
@@ -66,6 +116,9 @@ def discover_apps():
             continue
         if meta.get("id") == entry.name:
             meta["data_updated_at"] = data_updated_at(entry)
+            size_bytes = app_data_size(entry.name, entry)
+            meta["data_size_bytes"] = size_bytes
+            meta["data_size_formatted"] = format_size(size_bytes)
             apps.append(meta)
     return apps
 
@@ -113,8 +166,15 @@ def health():
 
 @app.get("/mosaic/", response_class=None)
 def dashboard(request: Request):
+    apps = discover_apps()
+    total_bytes = dir_size(DATA_HOME)
+    total_formatted = format_size(total_bytes)
     return templates.TemplateResponse(
-        request, "dashboard.html", {"apps": discover_apps()}
+        request, "dashboard.html", {
+            "apps": apps,
+            "total_data_size": total_formatted,
+            "total_data_bytes": total_bytes,
+        }
     )
 
 
