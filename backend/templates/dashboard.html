@@ -23,8 +23,11 @@
   </header>
   {% if apps %}
   <div class="controls">
-    <input type="search" id="q" class="search" autocomplete="off"
-           placeholder="Search apps by name or description&hellip;">
+    <div class="search-wrap">
+      <input type="search" id="q" class="search" autocomplete="off"
+             placeholder="Search apps by name or description&hellip;">
+      <button type="button" id="searchClear" class="search-clear" title="Clear search" hidden>&times;</button>
+    </div>
     <select id="sort" class="sort">
       <option value="name">Name (A&ndash;Z)</option>
       <option value="newest">Data: newest first</option>
@@ -61,7 +64,9 @@ const q = document.getElementById("q");
 if (q) {
   const noMatch = document.getElementById("noMatch");
   const noMatchQ = document.getElementById("noMatchQ");
-  q.addEventListener("input", () => {
+  const searchClear = document.getElementById("searchClear");
+
+  function filterApps() {
     const term = q.value.trim().toLowerCase();
     let visible = 0;
     tiles.forEach((t) => {
@@ -71,7 +76,20 @@ if (q) {
     });
     noMatch.hidden = visible > 0;
     noMatchQ.textContent = q.value.trim();
+    if (searchClear) searchClear.hidden = !q.value;
+  }
+
+  ["input", "search", "keyup", "change"].forEach((evt) => {
+    q.addEventListener(evt, filterApps);
   });
+
+  if (searchClear) {
+    searchClear.addEventListener("click", () => {
+      q.value = "";
+      filterApps();
+      q.focus();
+    });
+  }
 }
 
 // Freshness LED: rank apps that have data into three relative tiers — this

@@ -51,14 +51,18 @@ test.describe.serial("mosaic host contract", () => {
     await expect(page.locator(".header-data-info")).toBeVisible();
   });
 
-  test("dashboard search filters by name and by description, and clears", async ({ page }) => {
+  test("dashboard search filters by name and by description, and clears via input and searchClear button", async ({ page }) => {
     await page.goto("/mosaic/");
     const search = page.locator("#q");
+    const searchClear = page.locator("#searchClear");
     const tile = page.locator(".tile", { hasText: "Mosaic Test App" });
     const noMatch = page.locator("#noMatch");
 
+    await expect(searchClear).toBeHidden();
+
     await search.fill("Mosaic Test");
     await expect(tile).toBeVisible();
+    await expect(searchClear).toBeVisible();
 
     await search.fill("exercising mosaic's contract"); // matches description, not name
     await expect(tile).toBeVisible();
@@ -68,9 +72,17 @@ test.describe.serial("mosaic host contract", () => {
     await expect(noMatch).toBeVisible();
     await expect(noMatch).toContainText("no-app-named-this");
 
-    await search.fill("");
+    // Clear via searchClear button
+    await searchClear.click();
+    await expect(search).toHaveValue("");
+    await expect(searchClear).toBeHidden();
     await expect(tile).toBeVisible();
     await expect(noMatch).toBeHidden();
+
+    // Verify 'search' event triggers filtering as well
+    await search.fill("no-app-named-this");
+    await search.dispatchEvent("search");
+    await expect(tile).toBeHidden();
   });
 
   test("freshness LED renders a tier for every tile, and the fixture app (which ships data) is never marked as having no data", async ({ page }) => {
