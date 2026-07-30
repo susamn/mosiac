@@ -32,6 +32,20 @@ app.mount("/mosaic/static", StaticFiles(directory=str(Path(__file__).parent / "s
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
 
+def data_updated_at(entry: Path):
+    """Most recent mtime among files under entry/data, or None if there is none."""
+    data_dir = entry / "data"
+    if not data_dir.is_dir():
+        return None
+    latest = None
+    for f in data_dir.rglob("*"):
+        if f.is_file():
+            mtime = f.stat().st_mtime
+            if latest is None or mtime > latest:
+                latest = mtime
+    return latest
+
+
 def discover_apps():
     apps = []
     if not APPS_DIR.is_dir():
@@ -45,6 +59,7 @@ def discover_apps():
         except (json.JSONDecodeError, OSError):
             continue
         if meta.get("id") == entry.name:
+            meta["data_updated_at"] = data_updated_at(entry)
             apps.append(meta)
     return apps
 
