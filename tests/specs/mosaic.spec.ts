@@ -51,6 +51,28 @@ test.describe.serial("mosaic host contract", () => {
     await expect(tile.locator(".tver")).toHaveText("v0.1.0");
   });
 
+  test("dashboard search filters by name and by description, and clears", async ({ page }) => {
+    await page.goto("/mosaic/");
+    const search = page.locator("#q");
+    const tile = page.locator(".tile", { hasText: "Mosaic Test App" });
+    const noMatch = page.locator("#noMatch");
+
+    await search.fill("Mosaic Test");
+    await expect(tile).toBeVisible();
+
+    await search.fill("exercising mosaic's contract"); // matches description, not name
+    await expect(tile).toBeVisible();
+
+    await search.fill("no-app-named-this");
+    await expect(tile).toBeHidden();
+    await expect(noMatch).toBeVisible();
+    await expect(noMatch).toContainText("no-app-named-this");
+
+    await search.fill("");
+    await expect(tile).toBeVisible();
+    await expect(noMatch).toBeHidden();
+  });
+
   test("onboarding redirects data/ into the centralized data home", () => {
     const dataLink = path.join(FIXTURE, "data");
     expect(lstatSync(dataLink).isSymbolicLink()).toBe(true);

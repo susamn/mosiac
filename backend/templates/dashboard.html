@@ -13,15 +13,19 @@
     <p class="sub">apps onboarded on this host</p>
   </header>
   {% if apps %}
-  <div class="grid">
+  <input type="search" id="q" class="search" autocomplete="off"
+         placeholder="Search apps by name or description&hellip;">
+  <div class="grid" id="grid">
     {% for a in apps %}
-    <a class="tile" href="/mosaic/apps/{{ a.id }}/">
+    <a class="tile" href="/mosaic/apps/{{ a.id }}/"
+       data-name="{{ (a.name or "")|lower }}" data-desc="{{ (a.description or "")|lower }}">
       <div class="tname">{{ a.name }}</div>
       <div class="tdesc">{{ a.description or "" }}</div>
       <div class="tver">v{{ a.version or "0.0.0" }}</div>
     </a>
     {% endfor %}
   </div>
+  <p class="no-match" id="noMatch" hidden>No apps match &ldquo;<span id="noMatchQ"></span>&rdquo;.</p>
   {% else %}
   <div class="empty">
     No apps onboarded yet.<br>
@@ -29,5 +33,24 @@
   </div>
   {% endif %}
 </div>
+<script>
+const q = document.getElementById("q");
+if (q) {
+  const tiles = [...document.querySelectorAll(".tile")];
+  const noMatch = document.getElementById("noMatch");
+  const noMatchQ = document.getElementById("noMatchQ");
+  q.addEventListener("input", () => {
+    const term = q.value.trim().toLowerCase();
+    let visible = 0;
+    tiles.forEach((t) => {
+      const match = !term || t.dataset.name.includes(term) || t.dataset.desc.includes(term);
+      t.hidden = !match;
+      if (match) visible++;
+    });
+    noMatch.hidden = visible > 0;
+    noMatchQ.textContent = q.value.trim();
+  });
+}
+</script>
 </body>
 </html>
