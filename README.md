@@ -51,15 +51,27 @@ webapp/
 }
 ```
 
-Attach it:
+Attach it — mosaic reads from one fixed, install-independent staging
+directory, `~/.local/share/mosaic/apps/`, so a skill never needs to know
+where this mosaic install actually lives:
+
+```bash
+mkdir -p ~/.local/share/mosaic/apps
+ln -sfn /path/to/webapp ~/.local/share/mosaic/apps/<id>
+```
+
+`scripts/onboard.sh`/`unboard.sh` wrap the same operation with validation and
+clearer errors, plus a data-migration fallback (below) — convenient for
+manual use, not required:
 
 ```bash
 scripts/onboard.sh /path/to/webapp
 scripts/unboard.sh <app-id>     # detach (removes the symlink only, never the app's own files)
 ```
 
-No restart needed — mosaic discovers apps by globbing `apps/*/app.json` on
-every dashboard load.
+No restart needed — mosaic discovers apps by globbing that staging
+directory's `*/app.json` on every dashboard load, and creates the directory
+itself on startup if it doesn't exist yet (never touches it if it does).
 
 ## Contract mosaic guarantees
 
@@ -94,5 +106,6 @@ one from `.venv` for the run.
   inside `data/` — that's the app's manifest to own (a `data/manifest.json`
   convention is recommended: list datasets with `schema_version` so the app's
   frontend can gray out incompatible old data itself).
-- No runtime registration API — attaching an app is a filesystem operation
-  (`onboard.sh`), so it works whether or not mosaic is running at the time.
+- No runtime registration API — attaching an app is a plain filesystem
+  operation against a fixed staging directory, so it works whether or not
+  mosaic is running, or even installed yet, at the time.

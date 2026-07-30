@@ -4,10 +4,17 @@ Two routes carry every app's own behavior; this host has no per-app logic:
   GET /mosaic/apps/{id}/{path}       static assets (js, css, the app's index.html)
   GET /mosaic/apps/{id}/data/{path}  app-owned data, sub-paths fully app-defined
 
-Apps are discovered by globbing apps/*/app.json — no registration step, no
-restart needed after onboarding (see ../scripts/onboard.sh).
+Apps are discovered by globbing APPS_DIR/*/app.json — a fixed,
+install-independent staging directory (default ~/.local/share/mosaic/apps),
+never a path relative to wherever this mosaic install happens to live. A
+skill attaches by symlinking its own webapp/ in there directly; it never
+needs to know or reference this install's location. No registration step, no
+restart needed after onboarding (see ../scripts/onboard.sh, or
+references/data-app-skills.md in skill-creator for the raw filesystem
+contract a skill follows itself).
 """
 import json
+import os
 import re
 from pathlib import Path
 
@@ -16,8 +23,8 @@ from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-ROOT = Path(__file__).resolve().parent.parent
-APPS_DIR = ROOT / "apps"
+APPS_DIR = Path(os.environ.get("MOSAIC_APPS_DIR", Path.home() / ".local" / "share" / "mosaic" / "apps"))
+APPS_DIR.mkdir(parents=True, exist_ok=True)  # merciful: create once if missing, never touch if present
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 
 app = FastAPI(title="mosaic", docs_url=None, redoc_url=None)

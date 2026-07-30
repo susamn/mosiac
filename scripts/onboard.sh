@@ -1,11 +1,18 @@
 #!/usr/bin/env bash
-# onboard.sh — attach an app to mosaic by symlinking its webapp/ folder in,
-# and redirect its data/ into mosaic's centralized data home so every app's
-# data lives under one rclone-able root regardless of where the app's own
-# source lives on disk.
+# onboard.sh — convenience wrapper around the two-file-operation contract a
+# data-app skill can also do itself, directly, without ever referencing this
+# script or where this mosaic install lives:
+#   mkdir -p ~/.local/share/mosaic/apps
+#   ln -sfn <skill-path>/webapp ~/.local/share/mosaic/apps/<id>
+# (see skill-creator's references/data-app-skills.md for the raw contract).
+# This wrapper also redirects webapp/data into the centralized data home,
+# migrating any pre-existing local data — a fallback for skills that didn't
+# already write straight to the centralized home; see the same doc.
 #
+# Both directories are fixed and install-independent — mosaic reads apps
+# from APPS_HOME regardless of where this script or mosaic's own code lives.
 # Mirrors dotfiles/do-stow.sh's symlink-farm approach: no registration API,
-# no restart — mosaic discovers apps by globbing apps/*/app.json on request.
+# no restart — mosaic discovers apps by globbing APPS_HOME/*/app.json.
 set -euo pipefail
 
 usage() { echo "Usage: onboard.sh <path-to-app-webapp-dir>   (the dir containing app.json)"; exit 1; }
@@ -18,12 +25,12 @@ ID="$(python3 -c "import json,sys;print(json.load(open('$SRC/app.json'))['id'])"
   || { echo "[error] $SRC/app.json has no 'id' field or is not valid JSON"; exit 1; }
 [[ "$ID" =~ ^[a-z0-9][a-z0-9-]*$ ]] || { echo "[error] app.json id '$ID' must be kebab-case (^[a-z0-9][a-z0-9-]*\$)"; exit 1; }
 
-MOSAIC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+APPS_HOME="${MOSAIC_APPS_DIR:-$HOME/.local/share/mosaic/apps}"
 DATA_HOME="${MOSAIC_DATA_HOME:-$HOME/.local/share/mosaic/data}"
-DEST="$MOSAIC_DIR/apps/$ID"
+DEST="$APPS_HOME/$ID"
 CENTRAL="$DATA_HOME/$ID"
 DATA_LINK="$SRC/data"
-mkdir -p "$MOSAIC_DIR/apps" "$DATA_HOME"
+mkdir -p "$APPS_HOME" "$DATA_HOME"
 
 # ── app symlink: apps/<id> -> SRC ──────────────────────────────────────────
 if [[ -L "$DEST" ]]; then
