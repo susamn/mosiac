@@ -80,6 +80,15 @@ itself on startup if it doesn't exist yet (never touches it if it does).
   sub-path structure under `data/` is entirely up to the app (one flat file, or
   as many nested paths as it wants).
 - Both routes refuse to resolve outside the app's own directory.
+- The dashboard shows each app's data freshness as a status LED, computed
+  purely from filesystem mtimes under `data/` (no manifest format required —
+  apps with no data yet are always shown grey). Apps that have data are
+  ranked into three relative tiers against each other (green = freshest
+  third, blue = middle, grey = oldest third) rather than a fixed time cutoff,
+  so it adapts regardless of how often any given app actually syncs. A sort
+  control lets you order tiles by name, newest data first, or oldest data
+  first. This is dashboard-shell presentation only — not part of the HTTP
+  contract above, and no per-app opinion is baked into the host.
 
 ## Tests
 
