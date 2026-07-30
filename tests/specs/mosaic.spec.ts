@@ -73,6 +73,44 @@ test.describe.serial("mosaic host contract", () => {
     await expect(noMatch).toBeHidden();
   });
 
+  test("freshness LED renders a tier for every tile, and the fixture app (which ships data) is never marked as having no data", async ({ page }) => {
+    await page.goto("/mosaic/");
+    const tierClasses = ["led-green", "led-blue", "led-grey"];
+    const leds = page.locator(".tile .led");
+    const count = await leds.count();
+    for (let i = 0; i < count; i++) {
+      const cls = await leds.nth(i).getAttribute("class");
+      expect(tierClasses.some((c) => cls?.includes(c))).toBe(true);
+    }
+    const testAppLed = page.locator(".tile", { hasText: "Mosaic Test App" }).locator(".led");
+    await expect(testAppLed).not.toHaveAttribute("title", "No data yet");
+  });
+
+  test("sort control reorders tiles by name, then by data recency in both directions", async ({ page }) => {
+    await page.goto("/mosaic/");
+    const sort = page.locator("#sort");
+
+    await sort.selectOption("name");
+    const names = await page.locator(".tile").evaluateAll((els) => els.map((e) => e.getAttribute("data-name") || ""));
+    const sortedNames = [...names].sort((a, b) => a.localeCompare(b));
+    expect(names).toEqual(sortedNames);
+
+    const asFloatOrNegInf = (v: string | null) => {
+      const n = v === null ? NaN : parseFloat(v);
+      return Number.isNaN(n) ? -Infinity : n;
+    };
+
+    await sort.selectOption("newest");
+    const newestOrder = await page.locator(".tile").evaluateAll((els) => els.map((e) => e.getAttribute("data-updated")));
+    const newestVals = newestOrder.map(asFloatOrNegInf);
+    for (let i = 1; i < newestVals.length; i++) expect(newestVals[i - 1]).toBeGreaterThanOrEqual(newestVals[i]);
+
+    await sort.selectOption("oldest");
+    const oldestOrder = await page.locator(".tile").evaluateAll((els) => els.map((e) => e.getAttribute("data-updated")));
+    const oldestVals = oldestOrder.map(asFloatOrNegInf);
+    for (let i = 1; i < oldestVals.length; i++) expect(oldestVals[i - 1]).toBeLessThanOrEqual(oldestVals[i]);
+  });
+
   test("onboarding redirects data/ into the centralized data home", () => {
     const dataLink = path.join(FIXTURE, "data");
     expect(lstatSync(dataLink).isSymbolicLink()).toBe(true);
