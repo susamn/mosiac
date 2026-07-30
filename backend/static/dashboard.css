@@ -15,17 +15,25 @@ header { margin-bottom: 24px; }
 h1 { font-size: 24px; font-weight: 650; display: flex; align-items: center; gap: 10px; }
 .logo { width: 24px; height: 24px; border-radius: 5px; }
 .sub { color: var(--muted); font-size: 14px; margin-top: 2px; }
-.search { display: block; width: 100%; height: 40px; padding: 0 14px; margin-bottom: 16px;
+.controls { display: flex; gap: 10px; margin-bottom: 16px; }
+.search { display: block; flex: 1; height: 40px; padding: 0 14px;
           background: var(--card); border: 1px solid var(--line); border-radius: 10px;
           color: var(--ink); font: 14px system-ui, sans-serif; }
 .search:focus { outline: none; border-color: var(--accent); }
 .search::placeholder { color: var(--muted); }
+.sort { height: 40px; padding: 0 10px; background: var(--card); border: 1px solid var(--line);
+        border-radius: 10px; color: var(--ink); font: 14px system-ui, sans-serif; }
+.sort:focus { outline: none; border-color: var(--accent); }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
-.tile { display: block; background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+.tile { display: block; position: relative; background: var(--card); border: 1px solid var(--line); border-radius: 10px;
         padding: 16px 18px; text-decoration: none; color: inherit; transition: border-color .15s, transform .15s; }
 .tile[hidden] { display: none; }
 .tile:hover { border-color: var(--accent); transform: translateY(-1px); }
-.tname { font-weight: 600; font-size: 16px; margin-bottom: 4px; }
+.led { position: absolute; top: 14px; right: 14px; width: 9px; height: 9px; border-radius: 50%; background: var(--line); }
+.led-green { background: #22c55e; box-shadow: 0 0 0 3px rgba(34, 197, 94, .15); }
+.led-blue { background: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, .15); }
+.led-grey { background: #9ca3af; box-shadow: 0 0 0 3px rgba(156, 163, 175, .12); }
+.tname { font-weight: 600; font-size: 16px; margin-bottom: 4px; padding-right: 16px; }
 .tdesc { color: var(--muted); font-size: 13px; margin-bottom: 10px; min-height: 34px; }
 .tver { color: var(--muted); font-size: 12px; font-family: ui-monospace, monospace; }
 .no-match { text-align: center; color: var(--muted); padding: 40px 0; }

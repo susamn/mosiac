@@ -14,12 +14,21 @@
     <p class="sub">apps onboarded on this host</p>
   </header>
   {% if apps %}
-  <input type="search" id="q" class="search" autocomplete="off"
-         placeholder="Search apps by name or description&hellip;">
+  <div class="controls">
+    <input type="search" id="q" class="search" autocomplete="off"
+           placeholder="Search apps by name or description&hellip;">
+    <select id="sort" class="sort">
+      <option value="name">Name (A&ndash;Z)</option>
+      <option value="newest">Data: newest first</option>
+      <option value="oldest">Data: oldest first</option>
+    </select>
+  </div>
   <div class="grid" id="grid">
     {% for a in apps %}
     <a class="tile" href="/mosaic/apps/{{ a.id }}/"
-       data-name="{{ (a.name or "")|lower }}" data-desc="{{ (a.description or "")|lower }}">
+       data-name="{{ (a.name or "")|lower }}" data-desc="{{ (a.description or "")|lower }}"
+       data-updated="{{ a.data_updated_at or "" }}">
+      <span class="led"></span>
       <div class="tname">{{ a.name }}</div>
       <div class="tdesc">{{ a.description or "" }}</div>
       <div class="tver">v{{ a.version or "0.0.0" }}</div>
@@ -35,9 +44,10 @@
   {% endif %}
 </div>
 <script>
+const tiles = [...document.querySelectorAll(".tile")];
+
 const q = document.getElementById("q");
 if (q) {
-  const tiles = [...document.querySelectorAll(".tile")];
   const noMatch = document.getElementById("noMatch");
   const noMatchQ = document.getElementById("noMatchQ");
   q.addEventListener("input", () => {
@@ -50,6 +60,48 @@ if (q) {
     });
     noMatch.hidden = visible > 0;
     noMatchQ.textContent = q.value.trim();
+  });
+}
+
+// Freshness LED: rank apps that have data into three relative tiers — this
+// adapts to however many apps are onboarded rather than a fixed time cutoff.
+// Apps with no data at all are always grey.
+(function () {
+  const ranked = tiles
+    .map((t) => ({ t, ts: parseFloat(t.dataset.updated) }))
+    .filter((x) => !Number.isNaN(x.ts))
+    .sort((a, b) => b.ts - a.ts);
+  const n = ranked.length;
+  ranked.forEach((x, rank) => {
+    const tier = Math.floor((rank * 3) / n); // 0 = freshest third, 2 = oldest third
+    const led = x.t.querySelector(".led");
+    if (tier === 0) { led.classList.add("led-green"); led.title = "Latest data"; }
+    else if (tier === 1) { led.classList.add("led-blue"); led.title = "Somewhat older data"; }
+    else { led.classList.add("led-grey"); led.title = "Older data"; }
+  });
+  tiles.forEach((t) => {
+    if (Number.isNaN(parseFloat(t.dataset.updated))) {
+      const led = t.querySelector(".led");
+      led.classList.add("led-grey");
+      led.title = "No data yet";
+    }
+  });
+})();
+
+const sortSel = document.getElementById("sort");
+if (sortSel) {
+  const grid = document.getElementById("grid");
+  sortSel.addEventListener("change", () => {
+    const mode = sortSel.value;
+    const sorted = [...tiles].sort((a, b) => {
+      if (mode === "name") return a.dataset.name.localeCompare(b.dataset.name);
+      const ta = parseFloat(a.dataset.updated);
+      const tb = parseFloat(b.dataset.updated);
+      const na = Number.isNaN(ta) ? -Infinity : ta;
+      const nb = Number.isNaN(tb) ? -Infinity : tb;
+      return mode === "newest" ? nb - na : na - nb;
+    });
+    sorted.forEach((t) => grid.appendChild(t));
   });
 }
 </script>
