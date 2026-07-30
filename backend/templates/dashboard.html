@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mosaic</title>
+<link rel="stylesheet" href="/mosaic/static/dashboard.css">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>mosaic</h1>
+    <p class="sub">apps onboarded on this host</p>
+  </header>
+  {% if apps %}
+  <div class="grid">
+    {% for a in apps %}
+    <a class="tile" href="/mosaic/apps/{{ a.id }}/">
+      <div class="tname">{{ a.name }}</div>
+      <div class="tdesc">{{ a.description or "" }}</div>
+      <div class="tver">v{{ a.version or "0.0.0" }}</div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty">
+    No apps onboarded yet.<br>
+    Run <code>scripts/onboard.sh &lt;path-to-app-webapp-dir&gt;</code> to attach one.
+  </div>
+  {% endif %}
+</div>
+</body>
+</html>
